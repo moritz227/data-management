@@ -31,7 +31,6 @@ EXPORTS = {
     'customers': f'''
         SELECT c.customer_id,
                g.gender_name                              AS gender,
-               c.age,
                ci.city_name                               AS city,
                d.department_name                          AS department,
                c.income_bracket,

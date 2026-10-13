@@ -69,12 +69,10 @@ Table education_level {
 Table customer {
   customer_id integer [pk, note: 'natural key from source']
   gender_id integer [not null, ref: > gender.gender_id]
-  age integer [not null]
   city_id integer [not null, ref: > city.city_id]
   education_level_id integer [not null, ref: > education_level.education_level_id]
   channel_id integer [not null, ref: > acquisition_channel.channel_id]
   income_bracket varchar [not null, note: 'Low, Medium, High, Very High']
-  source_churn_probability decimal [note: 'kept only to test it; not a KPI']
 }
 
 Table transaction_type {

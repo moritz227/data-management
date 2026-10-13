@@ -57,13 +57,12 @@ CREATE TABLE education_level (
 CREATE TABLE customer (
     customer_id               INTEGER PRIMARY KEY,    -- natural key from the source, 8 digits
     gender_id                 INTEGER NOT NULL REFERENCES gender (gender_id),
-    age                       INTEGER NOT NULL CHECK (age BETWEEN 15 AND 100),
     city_id                   INTEGER NOT NULL REFERENCES city (city_id),
     education_level_id        INTEGER NOT NULL REFERENCES education_level (education_level_id),
     channel_id                INTEGER NOT NULL REFERENCES acquisition_channel (channel_id),
-    income_bracket            TEXT NOT NULL CHECK (income_bracket IN ('Low', 'Medium', 'High', 'Very High')),
-    -- Kept only to test it against observed churn (Story 1 data notes); never used as a KPI.
-    source_churn_probability  REAL CHECK (source_churn_probability BETWEEN 0 AND 1)
+    income_bracket            TEXT NOT NULL CHECK (income_bracket IN ('Low', 'Medium', 'High', 'Very High'))
+    -- Not kept: age (only six distinct values) and churn_probability (undocumented model output;
+    -- check_kpis.py tests it against the raw staging copy as evidence for the exclusion).
 );
 
 CREATE TABLE transaction_type (

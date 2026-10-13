@@ -49,19 +49,16 @@ INSERT INTO transaction_type (transaction_type_name)
 SELECT DISTINCT trim(type) FROM stg_transaction ORDER BY 1;
 
 -- ---------------------------------------------------------------------------------------------
--- Customer: keep the 8 columns Story 1 needs, drop the other 46 (see column selection note)
+-- Customer: keep the 6 columns Story 1 needs, drop the other 48 (see column selection note)
 -- ---------------------------------------------------------------------------------------------
 
-INSERT INTO customer (customer_id, gender_id, age, city_id, education_level_id, channel_id,
-                      income_bracket, source_churn_probability)
+INSERT INTO customer (customer_id, gender_id, city_id, education_level_id, channel_id, income_bracket)
 SELECT CAST(s.customer_id AS INTEGER),
        g.gender_id,
-       CAST(s.age AS INTEGER),
        c.city_id,
        e.education_level_id,
        ch.channel_id,
-       trim(s.income_bracket),
-       CAST(s.churn_probability AS REAL)
+       trim(s.income_bracket)
 FROM stg_customer s
 JOIN gender g               ON g.gender_name = trim(s.gender)
 JOIN department d           ON d.department_name = trim(substr(s.location, instr(s.location, ',') + 1))

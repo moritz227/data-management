@@ -1,6 +1,7 @@
 """Recalculate the eight Story 1 KPIs from output/fintech.db and compare them with the numbers in the Story 1 doc.
 
-Also runs the data checks behind the Story 1 data notes (customer-file reconciliation, churn_probability AUC,
+Also runs the data checks behind the Story 1 data notes (customer-file reconciliation, churn_probability AUC as
+evidence for excluding it,
 minimum activity per customer) and writes everything to output/reports/kpi_check.md.
 
 Run from the repository root after build_database.py: .venv/bin/python pipeline/check_kpis.py
@@ -178,11 +179,12 @@ def main():
               f'| Customer file `first_transaction_date` equals first date in transactions | {first_match:.1%} |',
               f'| Customer file `tx_count` equals transactions after de-duplication | {count_match:.2%} '
               '(the mismatches are exactly the customers with duplicate rows: `tx_count` counted them) |',
-              f'| AUC of `churn_probability` against observed 60-day churn | {churn_auc:.3f} (Story 1: 0.51) |',
+              f'| AUC of `churn_probability` against observed 60-day churn (column excluded from the model: method '
+              f'undocumented; this test, on the raw staging copy, is the evidence) | {churn_auc:.3f} (0.5 = chance) |',
               f'| Fewest transactions any customer has | {min_tx} ({at_min:,} customers have exactly {min_tx}) |',
               f'| `nps_score` range | {nps.min()} to {nps.max()} (a single person\'s NPS answer is 0-10, '
               'so this is not a raw survey answer) |',
-              f'| Distinct ages in customer file | {sorted(int(a) for a in m.age.unique())} |',
+              f'| Distinct ages in customer file (column excluded from the model) | {sorted(int(a) for a in m.age.unique())} |',
               f'| Largest single customer: share of all volume | {summary.volume_cop.max() / total_volume:.1%} '
               f'({summary.tx_count[summary.volume_cop.idxmax()]:,} transactions, '
               f'{summary.tx_count[summary.volume_cop.idxmax()] / 360:.0f} a day) |',
