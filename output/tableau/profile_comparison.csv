@@ -1,0 +1,29 @@
+population,population_order,trait,category,base_n,share
+Fintech customers,1,Education,Secondary,19263,0.3954
+Fintech customers,1,Education,Tertiary,29460,0.6046
+Fintech customers,1,Gender,Female,24033,0.4933
+Fintech customers,1,Gender,Male,23761,0.4877
+Fintech customers,1,Gender,Other,929,0.0191
+Colombian adults,2,Area,Rural,400,0.3825
+Colombian adults,2,Area,Urban,600,0.6175
+Colombian adults,2,Education,Not stated,1,0.0003
+Colombian adults,2,Education,Primary or less,284,0.2625
+Colombian adults,2,Education,Secondary,643,0.6622
+Colombian adults,2,Education,Tertiary,72,0.075
+Colombian adults,2,Gender,Female,631,0.521
+Colombian adults,2,Gender,Male,369,0.479
+Unbanked adults,3,Area,Rural,207,0.4318
+Unbanked adults,3,Area,Urban,239,0.5682
+Unbanked adults,3,Education,Not stated,1,0.0008
+Unbanked adults,3,Education,Primary or less,184,0.3899
+Unbanked adults,3,Education,Secondary,251,0.5855
+Unbanked adults,3,Education,Tertiary,10,0.0239
+Unbanked adults,3,Gender,Female,317,0.5946
+Unbanked adults,3,Gender,Male,129,0.4054
+Reachable unbanked,4,Area,Rural,86,0.3616
+Reachable unbanked,4,Area,Urban,142,0.6384
+Reachable unbanked,4,Education,Primary or less,56,0.2543
+Reachable unbanked,4,Education,Secondary,164,0.7162
+Reachable unbanked,4,Education,Tertiary,8,0.0295
+Reachable unbanked,4,Gender,Female,165,0.5871
+Reachable unbanked,4,Gender,Male,63,0.4129

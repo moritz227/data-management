@@ -1,0 +1,133 @@
+// ERD of the core (normalised) model. Paste into https://dbdiagram.io to draw it, then export PNG/PDF for the essay.
+// Mirrors pipeline/sql/01_schema.sql. Types are the conceptual types; SQLite stores DATE as TEXT and money as INTEGER.
+
+Project fintech_growth_story {
+  database_type: 'SQLite'
+  Note: 'Story 1: Is the fintech growing sustainably in Colombia, and where should its next customers come from?'
+}
+
+TableGroup shared_dimensions [color: #7A7A7A] {
+  gender
+  education_group
+}
+
+TableGroup fintech [color: #1F6FB2] {
+  customer
+  customer_transaction
+  transaction_type
+  city
+  department
+  acquisition_channel
+  education_level
+}
+
+TableGroup findex [color: #C0661F] {
+  survey_wave
+  respondent
+  respondent_barrier
+  account_barrier
+}
+
+// ---------------- shared (conformed) dimensions: the integration bridge ----------------
+
+Table gender {
+  gender_id integer [pk]
+  gender_name varchar [not null, unique, note: 'Female, Male, Other']
+}
+
+Table education_group {
+  education_group_id integer [pk, note: 'Findex educ codes 1-3']
+  education_group_name varchar [not null, unique, note: 'Primary or less, Secondary, Tertiary']
+}
+
+// ---------------- fintech ----------------
+
+Table department {
+  department_id integer [pk]
+  department_name varchar [not null, unique]
+}
+
+Table city {
+  city_id integer [pk]
+  city_name varchar [not null]
+  department_id integer [not null, ref: > department.department_id]
+  indexes { (city_name, department_id) [unique] }
+}
+
+Table acquisition_channel {
+  channel_id integer [pk]
+  channel_name varchar [not null, unique, note: 'Organic, Referral, Paid Ad, Partnership']
+}
+
+Table education_level {
+  education_level_id integer [pk]
+  education_level_name varchar [not null, unique, note: 'High School, Bachelor, Master, PhD']
+  rank_order integer [not null]
+  education_group_id integer [not null, ref: > education_group.education_group_id]
+}
+
+Table customer {
+  customer_id integer [pk, note: 'natural key from source']
+  gender_id integer [not null, ref: > gender.gender_id]
+  age integer [not null]
+  city_id integer [not null, ref: > city.city_id]
+  education_level_id integer [not null, ref: > education_level.education_level_id]
+  channel_id integer [not null, ref: > acquisition_channel.channel_id]
+  income_bracket varchar [not null, note: 'Low, Medium, High, Very High']
+  source_churn_probability decimal [note: 'kept only to test it; not a KPI']
+}
+
+Table transaction_type {
+  transaction_type_id integer [pk]
+  transaction_type_name varchar [not null, unique, note: 'Deposit, Payment, Transfer, Withdrawal']
+}
+
+Table customer_transaction {
+  transaction_id integer [pk, increment, note: 'surrogate key; source has none']
+  customer_id integer [not null, ref: > customer.customer_id]
+  transaction_date date [not null]
+  amount_cop "numeric(14,0)" [not null, note: 'whole Colombian pesos, > 0']
+  transaction_type_id integer [not null, ref: > transaction_type.transaction_type_id]
+  indexes { (customer_id, transaction_date) }
+}
+
+// ---------------- Findex ----------------
+
+Table survey_wave {
+  survey_wave_id integer [pk]
+  economy_code varchar [not null]
+  economy_name varchar [not null]
+  survey_year integer [not null]
+  pop_adult integer [not null, note: 'adults 15+, scales the weights']
+}
+
+Table respondent {
+  respondent_id integer [pk, note: 'wpid_random']
+  survey_wave_id integer [not null, ref: > survey_wave.survey_wave_id]
+  weight decimal [not null, note: 'wgt']
+  gender_id integer [not null, ref: > gender.gender_id]
+  age integer [not null]
+  education_group_id integer [ref: > education_group.education_group_id, note: 'NULL = not stated']
+  income_quintile integer [not null]
+  is_rural boolean [not null]
+  in_workforce boolean [not null]
+  has_account boolean [not null]
+  has_fin_account boolean [not null]
+  has_mobile_money boolean [not null]
+  owns_mobile_phone boolean
+  owns_smartphone boolean
+  used_internet_3m boolean [not null]
+}
+
+Table account_barrier {
+  barrier_id integer [pk]
+  findex_code varchar [not null, unique, note: 'fin11a-fin11f']
+  barrier_label varchar [not null]
+}
+
+Table respondent_barrier {
+  respondent_id integer [not null, ref: > respondent.respondent_id]
+  barrier_id integer [not null, ref: > account_barrier.barrier_id]
+  answer varchar [not null, note: "Yes, No, Don't know, Refused"]
+  indexes { (respondent_id, barrier_id) [pk] }
+}
