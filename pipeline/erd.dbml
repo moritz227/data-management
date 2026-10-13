@@ -1,8 +1,8 @@
 // ERD of the core (normalised) model. Paste into https://dbdiagram.io to draw it, then export PNG/PDF for the essay.
-// Mirrors pipeline/sql/01_schema.sql. Types are the conceptual types; SQLite stores DATE as TEXT and money as INTEGER.
+// Mirrors pipeline/sql/01_schema.sql (MySQL). Alternatively, MySQL Workbench can draw it from the live database.
 
 Project fintech_growth_story {
-  database_type: 'SQLite'
+  database_type: 'MySQL'
   Note: 'Story 1: Is the fintech growing sustainably in Colombia, and where should its next customers come from?'
 }
 
@@ -84,7 +84,7 @@ Table customer_transaction {
   transaction_id integer [pk, increment, note: 'surrogate key; source has none']
   customer_id integer [not null, ref: > customer.customer_id]
   transaction_date date [not null]
-  amount_cop "numeric(14,0)" [not null, note: 'whole Colombian pesos, > 0']
+  amount_cop "decimal(14,0)" [not null, note: 'whole Colombian pesos, > 0']
   transaction_type_id integer [not null, ref: > transaction_type.transaction_type_id]
   indexes { (customer_id, transaction_date) }
 }
@@ -102,7 +102,7 @@ Table survey_wave {
 Table respondent {
   respondent_id integer [pk, note: 'wpid_random']
   survey_wave_id integer [not null, ref: > survey_wave.survey_wave_id]
-  weight decimal [not null, note: 'wgt']
+  weight double [not null, note: 'wgt']
   gender_id integer [not null, ref: > gender.gender_id]
   age integer [not null]
   education_group_id integer [ref: > education_group.education_group_id, note: 'NULL = not stated']

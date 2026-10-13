@@ -1,9 +1,9 @@
-"""Export the Tableau data sources from output/fintech.db to output/tableau/*.csv (UTF-8, comma-separated).
+"""Export the Tableau data sources from the MySQL database to output/tableau/*.csv (UTF-8, comma-separated).
 
 Fintech data source (relate in Tableau on customer_id):
   customers.csv              one row per customer: profile + 2023 behaviour (status, volume, value tier)
   customer_month_status.csv  one row per customer per month (48,723 x 12): activity and growth state
-  transactions.csv           one row per transaction (3.16M rows, ~150 MB; skip with --skip-transactions)
+  transactions.csv           one row per transaction (3.16M rows, ~175 MB; skip with --skip-transactions)
 Pre-aggregated helpers (stand-alone sheets):
   monthly_growth.csv, cohort_retention.csv, churn_threshold.csv
 Findex data source:
@@ -15,14 +15,12 @@ Integration:
 
 Run from the repository root after build_database.py: .venv/bin/python pipeline/export_tableau.py
 """
-import sqlite3
 import sys
 from pathlib import Path
 
-import pandas as pd
+import db
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = ROOT / 'output' / 'fintech.db'
 OUT = ROOT / 'output' / 'tableau'
 
 HEAVY_ACCOUNT_TX = 1000   # more than ~3 transactions a day all year: possibly a business account (KPI 5 caveat)
@@ -40,7 +38,7 @@ EXPORTS = {
                CASE WHEN eg.education_group_id = 3 THEN 1 ELSE 0 END AS has_degree,
                ch.channel_name                            AS acquisition_channel,
                s.first_tx_date,
-               substr(s.first_tx_date, 1, 7) || '-01'     AS first_active_month,
+               DATE_FORMAT(s.first_tx_date, '%Y-%m-01')  AS first_active_month,
                s.last_tx_date,
                s.days_since_last_tx,
                s.status_60d,
@@ -65,7 +63,7 @@ EXPORTS = {
         FROM mart_customer_month_status ORDER BY customer_id, month''',
     'transactions': '''
         SELECT t.transaction_id, t.customer_id, t.transaction_date,
-               substr(t.transaction_date, 1, 7) || '-01' AS month,
+               DATE_FORMAT(t.transaction_date, '%Y-%m-01') AS month,
                t.amount_cop, tt.transaction_type_name AS transaction_type
         FROM customer_transaction t
         JOIN transaction_type tt ON tt.transaction_type_id = t.transaction_type_id
@@ -93,19 +91,22 @@ EXPORTS = {
 def main():
     skip = {'transactions'} if '--skip-transactions' in sys.argv else set()
     OUT.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB)
+    con = db.connect()
     try:
         for name, sql in EXPORTS.items():
             if name in skip:
                 continue
-            df = pd.read_sql_query(sql, con)
-            # 0/1 columns with NULLs come back as floats (1.0); write them as whole numbers.
-            for col in df.select_dtypes('float').columns:
-                if (df[col].dropna() % 1 == 0).all():
-                    df[col] = df[col].astype('Int64')
             path = OUT / f'{name}.csv'
-            df.to_csv(path, index=False, encoding='utf-8')
-            print(f'  {path.name}: {len(df):,} rows, {path.stat().st_size / 1e6:.1f} MB', flush=True)
+            n = 0
+            # Streamed in chunks, so the 3.16M-row transaction export never sits in memory at once.
+            for i, df in enumerate(db.query_chunks(con, sql)):
+                # 0/1 columns with NULLs come back as floats (1.0); write them as whole numbers.
+                for col in df.select_dtypes('float').columns:
+                    if (df[col].dropna() % 1 == 0).all():
+                        df[col] = df[col].astype('Int64')
+                df.to_csv(path, index=False, encoding='utf-8', mode='w' if i == 0 else 'a', header=i == 0)
+                n += len(df)
+            print(f'  {path.name}: {n:,} rows, {path.stat().st_size / 1e6:.1f} MB', flush=True)
     finally:
         con.close()
 

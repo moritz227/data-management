@@ -1,0 +1,3 @@
+pandas>=2.2
+PyMySQL>=1.1
+cryptography>=42   # needed by PyMySQL for MySQL's default login method (caching_sha2_password)

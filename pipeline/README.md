@@ -1,6 +1,52 @@
 # Pipeline: from the three source files to Tableau
 
-Builds a normalised SQLite database from the three Story 1 sources, recalculates the eight KPIs and exports clean CSVs for Tableau Public. All cleaning and modelling is in SQL (`sql/`). Python only loads the files, runs the SQL and writes the reports.
+Builds a normalised MySQL database from the three Story 1 sources, recalculates the eight KPIs and exports clean CSVs for Tableau Public. All cleaning and modelling is in SQL (`sql/`). Python only loads the files, runs the SQL and writes the reports.
+
+## One-time setup (each team member, on their own machine)
+
+Everyone runs their own local MySQL; nothing is shared except the code.
+
+**1. Install and start MySQL** (any version from 8.0 upwards):
+
+```bash
+brew install mysql
+```
+
+```bash
+brew services start mysql
+```
+
+**2. Secure the root account** (set a root password; answer yes to the clean-up questions):
+
+```bash
+mysql_secure_installation
+```
+
+**3. Create the database and a user for the pipeline.** Log in with `mysql -u root -p`, then run (choose your own password):
+
+```sql
+CREATE DATABASE fintech CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs;
+CREATE USER 'fintech'@'localhost' IDENTIFIED BY 'choose-a-password';
+GRANT ALL PRIVILEGES ON fintech.* TO 'fintech'@'localhost';
+SET PERSIST local_infile = 1;
+EXIT;
+```
+
+`local_infile` allows the fast bulk load of the CSV files. The accent-sensitive collation keeps "Bogotá" and "Bogota" apart.
+
+**4. Store your login details locally.** Copy the template and put your password after `password =`:
+
+```bash
+cp pipeline/db_config.example.ini pipeline/db_config.ini
+```
+
+`db_config.ini` is git-ignored, so the password stays on your machine.
+
+**5. Install the Python packages** into the project's virtual environment:
+
+```bash
+uv pip install --python .venv/bin/python -r pipeline/requirements.txt
+```
 
 ## Run it
 
@@ -10,34 +56,29 @@ From the repository root:
 .venv/bin/python pipeline/run_pipeline.py
 ```
 
-This takes about 35 seconds. It needs only pandas, which is already in `.venv`. Without the venv:
-
-```bash
-uv run --no-project --with pandas python pipeline/run_pipeline.py
-```
-
-Add `--skip-transactions` to leave out the 175 MB transaction-level export.
+This takes about 2.5 minutes and rebuilds everything from scratch (every table in the `fintech` database is dropped first). Add `--skip-transactions` to leave out the 175 MB transaction-level export.
 
 ## What runs, in order
 
 | Step | File | What it does |
 |---|---|---|
-| 1 | `build_database.py` | Loads `source/*.csv` unchanged into staging tables (all text), then runs the three SQL files |
-| 1a | `sql/01_schema.sql` | Logical model: tables, primary and foreign keys, data types, CHECK constraints |
+| 1 | `build_database.py` | Loads `source/*.csv` unchanged into staging tables with `LOAD DATA LOCAL INFILE` (stops if MySQL reports any warning), then runs the three SQL files |
+| 1a | `sql/01_schema.sql` | Logical model: tables, primary and foreign keys, data types (`DATE`, `DECIMAL(14,0)`, `BOOLEAN`, `VARCHAR`), CHECK constraints |
 | 1b | `sql/02_transform.sql` | Cleaning and integration: de-duplication, splitting city and department, lookup tables, Findex recoding, wide-to-long barriers, harmonised gender and education |
 | 1c | `sql/03_marts.sql` | Analysis tables: customer-month grid with growth states, customer summary (status, value tier, median gap), cohorts, churn sensitivity, Findex funnel, barriers, profile comparison |
 | 2 | `check_kpis.py` | Recalculates every Story 1 number and the data-note checks, then writes `output/reports/kpi_check.md` |
 | 3 | `export_tableau.py` | Writes `output/tableau/*.csv` |
+| - | `db.py` | Connection and query helpers; reads `db_config.ini` |
 | - | `erd.dbml` | ERD of the core model; paste it into [dbdiagram.io](https://dbdiagram.io) to draw it |
 
 ## Outputs
 
-| Path | Contents |
+| Where | Contents |
 |---|---|
-| `output/fintech.db` | SQLite database (about 320 MB, git-ignored). Open it with DB Browser for SQLite or `sqlite3` to run your own queries |
+| MySQL database `fintech` | Staging (`stg_*`), core and `mart_*` tables. Explore it with MySQL Workbench or `mysql -u fintech -p fintech`. Workbench can also draw the ERD from the live database (Database → Reverse Engineer) |
 | `output/reports/cleaning_log.md` | Every cleaning rule with row counts before and after |
 | `output/reports/kpi_check.md` | Story 1 numbers vs recalculated values, plus the data-quality checks |
-| `output/tableau/*.csv` | Tableau data sources (see the docstring in `export_tableau.py`) |
+| `output/tableau/*.csv` | Tableau data sources (see the docstring in `export_tableau.py`). Tableau Public cannot connect to MySQL, so the CSVs are the bridge |
 
 ## Definitions used (from Story 1)
 
@@ -49,3 +90,10 @@ Add `--skip-transactions` to leave out the 175 MB transaction-level export.
 - **Top 1%:** the 487 customers with the highest 2023 volume.
 - **Findex shares:** weighted with `wgt`. Counts of adults are scaled to `pop_adult` (41,544,122).
 - **Reachable unbanked:** `account = 0`, `con9 = 1` (smartphone) and `internet_use = 1`.
+
+## MySQL notes
+
+- `/` divides with decimals in MySQL, so whole-number division uses `DIV` (median calculation, top-1% cut-off).
+- The connection uses the same collation as the tables (`utf8mb4_0900_as_cs`); otherwise text literals in a `UNION` clash with table columns.
+- Staging columns are `VARCHAR` sized to the longest value in each file: 199 `TEXT` columns (Findex) exceed InnoDB's row-size limit.
+- The Findex file mixes line endings (header CRLF, data rows LF); the loader reads the ending from the data rows. Recorded in the cleaning log.

@@ -1,0 +1,3 @@
+# Personal MySQL login details (copy db_config.example.ini to create it)
+db_config.ini
+__pycache__/
